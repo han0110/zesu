@@ -387,7 +387,7 @@ pub const MainnetHandler = struct {
                     .failed => |r| {
                         const status: main.ExecutionStatus = if (r.is_revert) .Revert else .Halt;
                         var exec_result = main.ExecutionResult.new(status, exec_gas - r.gas_remaining);
-                        exec_result.return_data = alloc_mod.get().dupe(u8, r.return_data) catch @constCast(&[_]u8{});
+                        exec_result.return_data = if (r.return_data.len == 0) @constCast(&[_]u8{}) else alloc_mod.get().dupe(u8, r.return_data) catch @constCast(&[_]u8{});
                         // EIP-8037 (Amsterdam): a setupCreate failure (collision/balance/nonce)
                         // burns the regular create gas but never touches the state-gas reservoir.
                         // Return the full untouched reservoir — for a tx whose gas_limit exceeds
@@ -444,7 +444,7 @@ pub const MainnetHandler = struct {
                         const cr_status: main.ExecutionStatus = if (cr.success) .Success else if (cr.is_revert) .Revert else .Halt;
                         var exec_result = main.ExecutionResult.new(cr_status, 0);
                         exec_result.state_gas_used = cr.state_gas_used;
-                        exec_result.return_data = alloc_mod.get().dupe(u8, cr.return_data) catch @constCast(&[_]u8{});
+                        exec_result.return_data = if (cr.return_data.len == 0) @constCast(&[_]u8{}) else alloc_mod.get().dupe(u8, cr.return_data) catch @constCast(&[_]u8{});
                         var fr = main.FrameResult.new(exec_result, cr.gas_remaining, cr.gas_refunded);
                         fr.reservoir_remaining = cr.state_gas_remaining;
                         // EIP-8037 (Amsterdam): on top-level CREATE-tx halt/revert the account
@@ -702,7 +702,7 @@ pub const MainnetHandler = struct {
                 }
                 var exec_result = main.ExecutionResult.new(status, 0);
                 exec_result.state_gas_used = top_state_gas_used;
-                exec_result.return_data = alloc_mod.get().dupe(u8, ir.return_data) catch @constCast(&[_]u8{});
+                exec_result.return_data = if (ir.return_data.len == 0) @constCast(&[_]u8{}) else alloc_mod.get().dupe(u8, ir.return_data) catch @constCast(&[_]u8{});
                 var fr = main.FrameResult.new(exec_result, top_gas_remaining, ir.gas_refunded);
                 fr.reservoir_remaining = top_reservoir;
                 return fr;
@@ -973,7 +973,7 @@ fn executeIterative(
                 // points into the same buffer). Detect self-copy and skip it.
                 if (rd_raw.len == 0 or rd_raw.ptr != return_data_buf.items.ptr) {
                     return_data_buf.clearRetainingCapacity();
-                    return_data_buf.appendSlice(alloc_mod.get(), rd_raw) catch {};
+                    if (rd_raw.len != 0) return_data_buf.appendSlice(alloc_mod.get(), rd_raw) catch {};
                 } else {
                     return_data_buf.items.len = rd_raw.len;
                 }
@@ -1014,7 +1014,7 @@ fn executeIterative(
                 &[_]u8{};
             if (rd_raw.len == 0 or rd_raw.ptr != return_data_buf.items.ptr) {
                 return_data_buf.clearRetainingCapacity();
-                return_data_buf.appendSlice(alloc_mod.get(), rd_raw) catch {};
+                if (rd_raw.len != 0) return_data_buf.appendSlice(alloc_mod.get(), rd_raw) catch {};
             } else {
                 return_data_buf.items.len = rd_raw.len;
             }

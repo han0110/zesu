@@ -315,7 +315,8 @@ pub fn decode(alloc: std.mem.Allocator, data: []const u8) !input_mod.StatelessIn
     if (off_block_access_list > ep_data.len) return error.InvalidSsz;
 
     // extra_data: ByteList[32] — raw bytes (not an offset-table list)
-    const extra_data = try alloc.dupe(u8, ep_data[off_extra_data..off_transactions]);
+    const extra_data_src = ep_data[off_extra_data..off_transactions];
+    const extra_data = if (extra_data_src.len == 0) @constCast(&[_]u8{}) else try alloc.dupe(u8, extra_data_src);
 
     // transactions: List[ByteList, N] — offset-table format
     const txs_raw = try decodeByteListList(alloc, ep_data[off_transactions..off_withdrawals]);
@@ -325,7 +326,8 @@ pub fn decode(alloc: std.mem.Allocator, data: []const u8) !input_mod.StatelessIn
     }
 
     // block_access_list: last variable field (V4 only; empty for V3 via sentinel offset).
-    const block_access_list = try alloc.dupe(u8, ep_data[off_block_access_list..]);
+    const bal_src = ep_data[off_block_access_list..];
+    const block_access_list = if (bal_src.len == 0) @constCast(&[_]u8{}) else try alloc.dupe(u8, bal_src);
 
     // withdrawals: List[SszWithdrawal, N] — packed fixed-size items (no offset table).
     // off_block_access_list acts as the end sentinel for V3 (== ep_data.len).
